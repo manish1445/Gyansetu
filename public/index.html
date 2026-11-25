@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GyanSetu — Autonomous AI Tutor</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">GS</span>
+        <div>
+          <h1>GyanSetu</h1>
+          <p class="tagline">Autonomous AI Tutor for College Students in India</p>
+        </div>
+      </div>
+
+      <nav aria-label="Workspace actions" class="header-actions">
+        <div id="api-status-badge" class="status-pill" role="status" aria-live="polite">
+          Checking Groq status…
+        </div>
+        <div id="session-role-badge" class="status-pill" hidden></div>
+        <button type="button" id="open-weakness-btn" class="btn btn-secondary" hidden>
+          Class Weaknesses
+        </button>
+        <button type="button" id="open-new-student-btn" class="btn btn-primary" hidden>
+          + New Student
+        </button>
+        <button type="button" id="logout-btn" class="btn btn-secondary" hidden>
+          Logout
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <section id="login-screen" class="login-shell" aria-labelledby="login-heading" hidden>
+    <div class="card login-card">
+      <h2 id="login-heading">Sign in to GyanSetu</h2>
+      <p class="section-subtitle">
+        Choose Student or Teacher to access your personalized tutoring workspace.
+      </p>
+
+      <div class="tab-list" role="tablist" aria-label="Login role">
+        <button
+          type="button"
+          role="tab"
+          id="tab-student"
+          class="tab-btn"
+          aria-selected="true"
+          aria-controls="panel-student"
+        >
+          Student
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-teacher"
+          class="tab-btn"
+          aria-selected="false"
+          aria-controls="panel-teacher"
+        >
+          Teacher
+        </button>
+      </div>
+
+      <div id="login-error" class="field-error" role="alert" aria-live="polite" hidden></div>
+
+      <div id="panel-student" role="tabpanel" aria-labelledby="tab-student">
+        <form id="student-login-form" class="stacked-form" novalidate>
+          <div class="field">
+            <label for="login-student-select">Student name <span aria-hidden="true">*</span></label>
+            <select id="login-student-select" name="studentId" required>
+              <option value="">Loading students…</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="login-pin">PIN <span aria-hidden="true">*</span></label>
+            <input
+              type="password"
+              id="login-pin"
+              name="pin"
+              inputmode="numeric"
+              autocomplete="current-password"
+              required
+              minlength="4"
+              maxlength="12"
+              aria-describedby="pin-hint"
+              placeholder="Enter your PIN"
+            >
+            <span id="pin-hint" class="hint">
+              Demo PINs: Aarav (1111), Ananya (2222), Rohan (3333)
+            </span>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" id="student-login-btn" class="btn btn-primary btn-full">
+              Sign in as Student
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div id="panel-teacher" role="tabpanel" aria-labelledby="tab-teacher" hidden>
+        <form id="teacher-login-form" class="stacked-form" novalidate>
+          <div class="field">
+            <label for="login-passcode">Teacher passcode <span aria-hidden="true">*</span></label>
+            <input
+              type="password"
+              id="login-passcode"
+              name="passcode"
+              autocomplete="current-password"
+              required
+              aria-describedby="passcode-hint"
+              placeholder="Enter teacher passcode"
+            >
+            <span id="passcode-hint" class="hint">
+              Access all student profiles, add students, and inspect class weaknesses.
+            </span>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" id="teacher-login-btn" class="btn btn-primary btn-full">
+              Sign in as Teacher
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <div id="app-shell" class="layout-shell" hidden>
+    <aside class="sidebar" aria-label="Student profile and mastery">
+      <section class="card">
+        <h2>Student Profile</h2>
+
+        <form id="student-switch-form" class="stacked-form">
+          <div id="student-select-field" class="field">
+            <label for="student-select">Active student</label>
+            <select id="student-select" name="studentId"></select>
+          </div>
+
+          <fieldset class="radio-group">
+            <legend>Preferred language</legend>
+            <div class="radio-row">
+              <input type="radio" id="lang-en" name="language" value="English">
+              <label for="lang-en">English</label>
+            </div>
+            <div class="radio-row">
+              <input type="radio" id="lang-kn" name="language" value="Kannada">
+              <label for="lang-kn">ಕನ್ನಡ (Kannada)</label>
+            </div>
+            <div class="radio-row">
+              <input type="radio" id="lang-hi" name="language" value="Hindi">
+              <label for="lang-hi">हिन्दी (Hindi)</label>
+            </div>
+          </fieldset>
+        </form>
+
+        <dl id="student-meta" class="meta-list"></dl>
+      </section>
+
+      <section class="card">
+        <h2>Topic Mastery</h2>
+        <p class="hint">
+          Below 0.40 &rarr; Simple &middot; 0.40–0.69 &rarr; Standard &middot; 0.70+ &rarr; Advanced
+        </p>
+        <ul id="mastery-list" class="mastery-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Recent Doubts</h2>
+        <ul id="recent-doubts-list" class="doubts-list"></ul>
+      </section>
+    </aside>
+
+    <main id="main-content" class="main-panel">
+      <div id="global-alert" class="alert-banner" role="status" aria-live="polite" hidden></div>
+
+      <section class="card doubt-card" aria-labelledby="doubt-heading">
+        <h2 id="doubt-heading">Ask a Doubt (Doubt Mode)</h2>
+        <p class="section-subtitle">
+          GyanSetu checks your mastery profile, pinpoints your prerequisite gap, explains with a real-life example, and generates a 3-question diagnostic quiz.
+        </p>
+
+        <form id="doubt-form" novalidate>
+          <div class="field">
+            <label for="doubt-question">
+              What concept are you stuck on? <span aria-hidden="true">*</span>
+            </label>
+            <textarea
+              id="doubt-question"
+              name="question"
+              rows="4"
+              required
+              aria-describedby="doubt-help doubt-error"
+              placeholder="e.g. Why does recursion cause a StackOverflowError if the base case is missing? Or attach a photo of your notes/problem."
+            ></textarea>
+            <span id="doubt-help" class="hint">
+              Tip: Try topics like "Recursion &amp; Call Stack", "Kirchhoff's Laws", or "Entropy &amp; Second Law".
+            </span>
+            <span id="doubt-error" class="field-error" aria-live="polite" hidden></span>
+          </div>
+
+          <div class="field">
+            <label for="doubt-image">Attach textbook or handwritten problem image (optional)</label>
+            <input
+              type="file"
+              id="doubt-image"
+              name="image"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              aria-describedby="image-help"
+            >
+            <span id="image-help" class="hint">PNG, JPEG, WEBP, or GIF up to 4 MB.</span>
+            <div id="image-preview-wrap" class="image-preview" hidden>
+              <img id="image-preview" alt="Preview of attached study problem" width="240" height="160">
+              <button type="button" id="clear-image-btn" class="btn btn-secondary btn-sm">
+                Remove image
+              </button>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" id="submit-doubt-btn" class="btn btn-primary">
+              Ask GyanSetu
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section id="tutor-output-section" class="card result-card" aria-labelledby="tutor-heading" hidden>
+        <div class="result-header">
+          <div>
+            <h2 id="tutor-heading">Tutor Explanation</h2>
+            <p id="tutor-topic-line" class="topic-subtitle"></p>
+          </div>
+          <span id="tutor-level-badge" class="level-badge"></span>
+        </div>
+
+        <div class="diagnosis-grid">
+          <div class="diagnosis-box">
+            <h3>Prerequisite Gap</h3>
+            <p id="tutor-gap-text"></p>
+          </div>
+          <div class="diagnosis-box">
+            <h3>Why This Level?</h3>
+            <p id="tutor-reason-text"></p>
+          </div>
+        </div>
+
+        <article class="primary-explanation" aria-labelledby="chosen-exp-heading">
+          <h3 id="chosen-exp-heading">Your Calibrated Explanation</h3>
+          <p id="tutor-primary-explanation"></p>
+        </article>
+
+        <details class="disclosure">
+          <summary>Compare all 3 mastery levels (Simple, Standard, Advanced)</summary>
+          <div class="levels-comparison">
+            <div class="level-item">
+              <h4>Simple (&lt; 0.40)</h4>
+              <p id="exp-simple"></p>
+            </div>
+            <div class="level-item">
+              <h4>Standard (0.40 – 0.69)</h4>
+              <p id="exp-standard"></p>
+            </div>
+            <div class="level-item">
+              <h4>Advanced (0.70+)</h4>
+              <p id="exp-advanced"></p>
+            </div>
+          </div>
+        </details>
+
+        <details class="disclosure">
+          <summary>Autonomous Tool Trace &amp; JSON Output</summary>
+          <div class="trace-panel">
+            <h4>Tool Execution Order (max 6 per request)</h4>
+            <ol id="doubt-tool-trace" class="trace-list"></ol>
+            <h4>Strict JSON Payload</h4>
+            <pre role="region" aria-label="Raw Doubt Mode JSON" tabindex="0"><code id="doubt-raw-json"></code></pre>
+          </div>
+        </details>
+      </section>
+
+      <section id="quiz-section" class="card quiz-card" aria-labelledby="quiz-heading" hidden>
+        <div class="result-header">
+          <div>
+            <h2 id="quiz-heading">Diagnostic Check (3 Questions)</h2>
+            <p id="quiz-meta-line" class="topic-subtitle"></p>
+          </div>
+          <span id="quiz-difficulty-badge" class="level-badge"></span>
+        </div>
+
+        <form id="quiz-form" novalidate>
+          <div id="quiz-questions-container"></div>
+          <div id="quiz-error" class="field-error" role="alert" hidden></div>
+          <div class="form-actions">
+            <button type="submit" id="submit-quiz-btn" class="btn btn-primary">
+              Submit Quiz Answers
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section id="quiz-feedback-section" class="card feedback-card" aria-labelledby="feedback-heading" hidden>
+        <div class="result-header">
+          <h2 id="feedback-heading">Quiz Evaluation (Quiz Result Mode)</h2>
+          <span id="quiz-score-badge" class="level-badge"></span>
+        </div>
+
+        <p id="feedback-message" class="feedback-lead"></p>
+
+        <div id="reteach-box" class="reteach-box" hidden>
+          <h3>Fresh Reteach (New Analogy)</h3>
+          <p id="feedback-reteach"></p>
+        </div>
+
+        <ul id="quiz-breakdown-list" class="breakdown-list"></ul>
+
+        <details class="disclosure">
+          <summary>Quiz Mode Tool Trace &amp; JSON Output</summary>
+          <div class="trace-panel">
+            <h4>Tool Execution Order</h4>
+            <ol id="quiz-tool-trace" class="trace-list"></ol>
+            <h4>Strict JSON Payload</h4>
+            <pre role="region" aria-label="Raw Quiz Result JSON" tabindex="0"><code id="quiz-raw-json"></code></pre>
+          </div>
+        </details>
+      </section>
+    </main>
+  </div>
+
+  <section id="teacher-dashboard" class="teacher-shell" aria-labelledby="teacher-dashboard-heading" hidden>
+    <div class="card teacher-header-card">
+      <div class="teacher-top-bar">
+        <div>
+          <h2 id="teacher-dashboard-heading">Teacher Dashboard</h2>
+          <p class="section-subtitle">
+            Monitor concepts where students scored below 2/3 on diagnostic quizzes.
+          </p>
+        </div>
+
+        <div class="teacher-controls">
+          <div class="filter-group">
+            <label for="teacher-class-filter">Class</label>
+            <select id="teacher-class-filter" name="classId">
+              <option value="">All classes</option>
+            </select>
+          </div>
+          <button type="button" id="teacher-refresh-btn" class="btn btn-secondary">
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="summary-row" aria-live="polite">
+        <div class="stat-card">
+          <span class="stat-label">Total Flags</span>
+          <strong id="stat-total-flags" class="stat-value">0</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Topics Flagged</span>
+          <strong id="stat-topics-flagged" class="stat-value">0</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Classes</span>
+          <strong id="stat-classes-count" class="stat-value">0</strong>
+        </div>
+      </div>
+    </div>
+
+    <div id="teacher-alert" class="alert-banner" role="status" aria-live="polite" hidden></div>
+
+    <section class="card" aria-labelledby="teacher-weakness-heading">
+      <h3 id="teacher-weakness-heading">Class Weaknesses</h3>
+      <p id="teacher-empty-state" class="empty-state" hidden>
+        No weak topics yet. Flags appear when students score below 2/3 on a quiz.
+      </p>
+      <ul id="teacher-weakness-list" class="teacher-weakness-list"></ul>
+    </section>
+  </section>
+
+  <footer class="site-footer">
+    <p>GyanSetu &middot; Mastery-driven tutoring in English, Kannada &amp; Hindi &middot; Powered by Groq API</p>
+  </footer>
+
+  <!-- Modal: New Student -->
+  <dialog id="new-student-dialog" closedby="any" aria-labelledby="new-student-title">
+    <div class="dialog-header">
+      <h2 id="new-student-title">Add Student Profile</h2>
+      <form method="dialog">
+        <button type="submit" class="btn btn-secondary btn-sm" value="close" aria-label="Close add student dialog">
+          Close
+        </button>
+      </form>
+    </div>
+
+    <form id="new-student-form" class="stacked-form" novalidate>
+      <div class="field">
+        <label for="stu-name">Full name <span aria-hidden="true">*</span></label>
+        <input type="text" id="stu-name" name="name" autocomplete="name" required minlength="2" maxlength="80">
+      </div>
+
+      <div class="field">
+        <label for="stu-college">College / University <span aria-hidden="true">*</span></label>
+        <input type="text" id="stu-college" name="college" required minlength="2" maxlength="120" placeholder="e.g. NITK Surathkal">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="stu-branch">Branch / Degree <span aria-hidden="true">*</span></label>
+          <input type="text" id="stu-branch" name="branch" required minlength="2" maxlength="80" placeholder="e.g. B.Tech CSE">
+        </div>
+        <div class="field">
+          <label for="stu-semester">Semester <span aria-hidden="true">*</span></label>
+          <input type="text" id="stu-semester" name="semester" inputmode="numeric" pattern="[1-8]" required value="4">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="stu-pin">Student login PIN <span aria-hidden="true">*</span></label>
+        <input type="text" id="stu-pin" name="pin" inputmode="numeric" minlength="4" maxlength="12" required value="0000" aria-describedby="stu-pin-help">
+        <span id="stu-pin-help" class="hint">4–12 characters used by this student to sign in.</span>
+      </div>
+
+      <fieldset class="radio-group">
+        <legend>Preferred tutoring language</legend>
+        <div class="radio-row">
+          <input type="radio" id="new-lang-en" name="language" value="English" checked>
+          <label for="new-lang-en">English</label>
+        </div>
+        <div class="radio-row">
+          <input type="radio" id="new-lang-kn" name="language" value="Kannada">
+          <label for="new-lang-kn">ಕನ್ನಡ (Kannada)</label>
+        </div>
+        <div class="radio-row">
+          <input type="radio" id="new-lang-hi" name="language" value="Hindi">
+          <label for="new-lang-hi">हिन्दी (Hindi)</label>
+        </div>
+      </fieldset>
+
+      <div id="new-student-error" class="field-error" role="alert" hidden></div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Create Student</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal: Class Weaknesses Dashboard -->
+  <dialog id="weakness-dialog" closedby="any" aria-labelledby="weakness-title">
+    <div class="dialog-header">
+      <h2 id="weakness-title">Flagged Class Weaknesses</h2>
+      <form method="dialog">
+        <button type="submit" class="btn btn-secondary btn-sm" value="close" aria-label="Close class weaknesses dialog">
+          Close
+        </button>
+      </form>
+    </div>
+    <p class="hint">
+      Automatically flagged whenever a student scores below 2/3 on a diagnostic quiz.
+    </p>
+    <ul id="weakness-list" class="weakness-list"></ul>
+  </dialog>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

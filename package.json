@@ -1,0 +1,26 @@
+{
+  "name": "gyansetu",
+  "version": "1.0.0",
+  "description": "GyanSetu — Autonomous AI Tutor for College Students in India powered by Groq API",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "groq-sdk": "^1.6.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}
